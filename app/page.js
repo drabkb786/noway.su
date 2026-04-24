@@ -31,25 +31,42 @@ export default function Home() {
   };
 
   const savePdfLog = async (pdfFileName) => {
-    const response = await fetch("/api/log", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: formData.name.trim(),
-        rollNo: formData.rollNo.trim(),
-        action: "PDF generated from app",
-        pdfFileName,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || "Log save nahi ho saka.");
+    try {
+      const response = await fetch("/api/log", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        signal: controller.signal,
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          rollNo: formData.rollNo.trim(),
+          action: "PDF generated from app",
+          pdfFileName,
+        }),
+      });
+
+      const resultText = await response.text();
+      let result = {};
+
+      try {
+        result = resultText ? JSON.parse(resultText) : {};
+      } catch {
+        result = { message: resultText };
+      }
+
+      if (!response.ok) {
+        throw new Error(result.message || `Log API error: ${response.status}`);
+      }
+
+      return result;
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-
-    return response.json();
   };
 
   const drawNormalText = (doc, text, x, y, size = 14) => {
@@ -105,7 +122,15 @@ export default function Home() {
 
     try {
       const pdfFileName = `${makeSafeFileName(studentName)}_${makeSafeFileName(rollNumber)}_Assignment.pdf`;
-      await savePdfLog(pdfFileName);
+      let logResult = null;
+      let logError = null;
+
+      try {
+        logResult = await savePdfLog(pdfFileName);
+      } catch (error) {
+        logError = error;
+        console.warn("Log save warning:", error);
+      }
 
       const doc = new jsPDF({
       encryption: {
@@ -178,11 +203,18 @@ export default function Home() {
     });
 
       doc.save(pdfFileName);
-      setLogMessage("Log save ho gaya: logs/pdf-edit-logs.csv aur logs/pdf-edit-logs.jsonl");
+
+      if (logResult?.ok) {
+        setLogMessage(`PDF download ho gaya. Log save ho gaya: ${logResult.logDir || "logs"}/pdf-edit-logs.csv`);
+      } else if (logError) {
+        setLogMessage(`PDF download ho gaya, lekin log save nahi hua: ${logError.message}. App ko npm run dev / npm start se chalayein, static host ya direct file open par server log nahi banta.`);
+      } else {
+        setLogMessage("PDF download ho gaya.");
+      }
     } catch (error) {
-      console.error("PDF/log error:", error);
+      console.error("PDF error:", error);
       alert(error.message || "PDF generate karne me masla aaya.");
-      setLogMessage("Log ya PDF generate karne me masla aaya. Console check karein.");
+      setLogMessage("PDF generate karne me masla aaya. Console check karein.");
     } finally {
       setIsGenerating(false);
     }

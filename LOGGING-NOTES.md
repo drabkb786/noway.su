@@ -1,20 +1,37 @@
-# PDF Log Folder
+# PDF Logging Notes
 
-This project saves a log entry whenever a user generates the PDF from the app.
+Is version me PDF generation aur logging ko separate kar diya gaya hai.
 
-Log files are created automatically in the `logs` folder:
+- PDF open/print ke liye password nahi lagega.
+- PDF edit/modify ke liye owner password required rahega: `B@sit0786`.
+- Jab user **Download PDF** press karega, app `/api/log` par POST request bhej kar log save karegi.
+- Logs default yahan save honge:
+  - `logs/pdf-edit-logs.csv`
+  - `logs/pdf-edit-logs.jsonl`
 
-- `logs/pdf-edit-logs.csv`
-- `logs/pdf-edit-logs.jsonl`
+## Zaroori baat
 
-Each log entry includes:
+Logging tabhi kaam karegi jab app Next.js server ke through chal rahi ho:
 
-- timestamp
-- name
-- roll number
-- action
-- PDF file name
-- browser user-agent
-- IP address if provided by the server/proxy
+```bash
+npm install
+npm run dev
+```
 
-Important: this logging runs when the app is running through the Next.js server. It does not run if the page is exported as a fully static HTML file.
+Phir browser me app open karein:
+
+```text
+http://localhost:3000
+```
+
+Agar app ko direct HTML file ki tarah open kiya, static hosting par upload kiya, ya aisi hosting par chalaya jahan Node.js API routes nahi chaltay, to PDF download ho jayegi lekin server log file nahi banegi.
+
+## Check
+
+Browser me ye URL open kar ke API check kar sakte hain:
+
+```text
+http://localhost:3000/api/log
+```
+
+Agar JSON response aaye to logging API theek chal rahi hai.
